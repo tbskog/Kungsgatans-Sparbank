@@ -1,0 +1,1 @@
+# Kungsgatans-Sparbank
