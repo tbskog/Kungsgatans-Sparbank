@@ -1,134 +1,121 @@
-# Kungsgatans-Sparbank
-# Case: Transaction Analytics & Pricing Simulation
-## Context
-You have in the Repo four data files representing a simplified payments/acquiring dataset:
+# Transaction analysis case solution
 
-### Transaction statistics (2024,2025) (e.g., turnover, fees/revenue, dates, card types, merchant IDs)
-| Column name            | Type   | Description |
-|------------------------|--------|-------------|
-| period_date            | date   | Date representing the transaction period ( month start). |
-| merchant_id            | string | Unique identifier for the merchant. |
-| card_type              | string | Card category (e.g. Debit, Credit, Domestic, International). |
-| turnover_amount        | float  | Total transaction value for the period, in original currency. |
-| msc_amount             | float  | Merchant Service Charge charged on the transactions, in original currency. |
-| Scheme_cost      | int    | Cost for the transaction |
-| Interchange      | int    | Cost for the transaction |
+This repo contains my solution to the case "Transaction Analytics & Pricing Simulation" at Kungsgatan Sparbank. The solution can be run end-to-end with a single command after setup.
 
+## Setup
 
-### Merchant list (merchant metadata, including partner attachment)
+Create and activate a virtual environment:
 
-| Column name        | Type   | Description |
-|--------------------|--------|-------------|
-| merchant_id        | string | Unique identifier for the merchant. |
-| merchant_name      | string | Display name of the merchant. |
-| VAT Number           | string | Legal entity |
-| partner_id         | string | Identifier of the partner the merchant is attached to. |
-| country            | string | Country where the merchant is registered or operates. |
-| currency           | string | ISO currency code (e.g. SEK, EUR, NOK). |
+```bash
+conda create -n sparbank-case-oliver-c python=3.11
+conda activate sparbank-case-oliver-c
+```
 
-### Currency table (FX rates needed to convert amounts to SEK)
-| Column name        | Type   | Description |
-|--------------------|--------|-------------|
-| currency        | string |ISO currency code|
-| Rate        | Decimal |  |
-| year        | INT |  |
-| month        | INT |  |
+Install required dependencies:
 
+```bash
+pip install -r requirements.txt
+```
 
+---
 
-Goal: Produce clear, reproducible answers (supported by code) to the questions below.
+## Run the Solution
 
+Run the full transaction analysis pipeline. This will execute the full pipeline and print the results for all four questions to the console.
 
-### Requirements
+Navigate to the project root and run:
+```bash
+python src/main.py
+```
 
+## Data
 
-In a coding language of your choice.
-Your solution should be replicable, well‑structured, and easy to review.
+The solution expects input data to be located in the root directory provided in the repository.
 
-Deliverables
-Provide the following:
+# Overview
+The solution implements an end-to-end pipeline to answer the four questions:
 
-Do a pull request on the given repo containing:
+* **Q1:** Total turnover SEK per year
+* **Q2:** Partner comparison: merchant count vs revenue
+* **Q3:** Service_Charge rate per card type + relationship to turnover
+* **Q4:** Pricing simulation / optimization
 
-README.md with instructions to run the solution
-Source code (scripts/modules)
+## General assumptions
+* Firstly, it's assumed that the datasets to be ingested always come with the same column names. 
+* It's also assumed that the column naming in the main repo are standard for us. Thus, the raw datasets' column names are standardized according to the column naming provided in the main repo.
+* I have to assume that the original data is 'correct'. However, an outlier analysis may be beneficial.
+* I also assume that the transactional data is correct as is.
 
+## Exploratory analysis
+* Do the merchants use multiple currencies?
+    * Analysis said no.
+* Are all exchange rates in the transaction table present in the currency rate table?
+    * No, BGN is not present in the currency rate table.
+        * BGN is pegged to Euro since 1999, 1 EUR = 1.95583 BGN
 
-### Expectation
+# Q1: Total turnover SEK per year
 
-The solution runs end‑to‑end from raw input files to final outputs.
-Assumptions are documented (especially around “revenue”, currency conversion rules, and missing values).
+## Assumptions
+* Total turnover is defined as the total transactional value as provided by sum of "turnover_amount" in the transaction         statistics table, after converting each local currency to SEK.
+* Currency rates from local currency to SEK are provided in the currency table. It is assumed that the present rates and dates (months) in the table are correct. 
+    * The rates are provided per month, thus there is a 'forced' assumption that the rate of the 1st day of the month applies to the whole month, since each transaction is per month as well.
+* It is assumed that missing currency rates can be exchanged by the latest available currency rate. However, an API or other method for extracting 'true' rates would be better.
 
-Evaluation Criteria
-We will assess:
+## Results
+* The total turnover in SEK, per year is provided in a dataframe.
 
-Correctness of results and reasoning
-Code quality (structure, naming, modularity, readability)
-Reproducibility (clear run instructions, deterministic outputs)
-Data handling (joins, edge cases, currency conversion, validation)
-Clarity of communication (how well you present findings)
+# Q2: Partner comparison: merchant count vs revenue
 
----------------------------------------------------------------------------------------------------------------
-## Tasks / Questions
-### 1) Total Turnover per year in SEK
-Compute total Turnover per year, converted into SEK using the provided currency table.
-Expected output
+## Assumptions
+* It's assumed that the question refers to the revenue generated over the time period
+    that is provided by the transactional data. In other words, which partner has generated the most revenue over the period 2024-2025.
+* The same applies to the number of merchants each partner is connected to.
+    * Assumption may skew the result if some partners have lost their merchants from 2024-2025
 
-A table like: year | Turnover_sek  
-Document assumptions (e.g., what constitutes “Turnover”, which FX rate to apply, how dates are interpreted)
+## Results
+* The top five partners with the most merchants are provided in a dataframe.
+    * Top 1 is "Partner003", during 2024-2025
+* The partners that generates the most revenue (2024-2025) is also provided in a dataframe.
 
+# Q3: Service_Charge rate per card type + relationship to turnover
 
-### 2) Partner comparison: merchant count vs revenue
-Merchants are attached to partners.  
+## Assumptions
+* It's assumed that the question refers to the time period given by the provided transactional data. In other words, compute the service charge rate per card type between 2024-2025.
+    * In case there was a service charge shift between 2024 & 2025, the result will be the average service charge rate for the given period.
 
-Which partner has the most merchants?  
-Which partner generates the most revenue? (in SEK)  
+## Result
+* Service charges per card type are provided in a dataframe.
+* Correlation analysis concludes that there is a linear relationship between turnover and service charge per card type.
+    * I.e. there is (and was during 2024-2025) a fixed rate for each card type.
 
-Expected output  
+# Q4: Pricing simulation / optimization
 
-A table of partners ranked by:
+## Assumptions
+* Firstly, it's assumed that "1,000,000 mSEK" is a typo for "1 MSEK".
+* It's assumed that it's most reliable to use only the latest year's transactions and net revenues.
+    * and not average, for example.
+* It's assumed that the card scheme cost and interchange cost are fixed, and won't change upcoming year.
+* It's assumed to be best to distribute the percentage increase in service charge rate across all cards, equally.
+    * With respect to customer churn, having a fixed bps (or %) increase negatively impacts cheaper card types (gets a higher % increase than expensive ones) and having a relative bps increase negatively impacts more expensive cards.
+        * However, the relative bps increase seems most fair. A customer churn analysis (e.g. A/B groups) would be beneficial.
 
-merchant count
-revenue (SEK)
+## Optimization method description
+The proposed method utilizes the bisection method (or binary search) to find the optimal increase in service charge rate (SCR). As stated under 'assumptions', the increased SCR is applied equally across all card types and the optimization method is constrained to not apply an increase in SCR over 5%. The bisection method, and this optimization method, continously divides the constrained parameter space (['low', 'high'] = [0%, 5%]) and checks if the midpoint satisfies the objective (Net revenue increase = 1 MSEK ± 0.01 SEK). If not, the midpoint becomes the new 'low' or 'high' in the parameter space, ultimately narrowing the search until convergence.
 
+## Result
+The optimization method successfully found a Service Charge Rate Increase across all cards. Results are presented below:
 
-### 3) Service_Charge rate per card type + relationship to turnover
-Compute the Service_Charge rate per card type, then analyze the relationship between turnover and Service_Charge.
-Expected output
+    - Service Charge Rate Increase over all cards: 
+        - 0.001967%
 
-Table: card_type | Service_Charge_rate     
-Analysis of relationship between turnover and Service_Charge:  
-Note: The dataset provides Service_Charge amount and turnover, Service_Charge rate can be derived as Service_Charge / turnover. 
+    - bps change per card (rounded) | Net Revenue Impact:
+        - Amex:          0.0043 bps | 275,174.64 SEK
+        - MC_CREDIT:     0.0030 bps | 185,549.44 SEK
+        - MC_DEBIT:      0.0017 bps | 106,735.67 SEK
+        - OTHER:         0.0024 bps | 150,570.33 SEK
+        - VISA_CREDIT:   0.0028 bps | 177,980.69 SEK
+        - VISA_DEBIT:    0.0016 bps | 103,989.24 SEK
 
-### 4) Pricing simulation / optimization
-Simulate changes in pricing(Service_Charge rate). Based on the rate per card type, propose adjustments that:  
-
-Increase net revenue by 1,000,000 mSEK per year, while  
-Minimizing the percentage increase in Service_Charge rate  
-
-Note: Net Revenue is given by Service_charge-Schemecost-Interchange  
-
-#### Expected output
-
-A clearly described method (i.e. optimization approach)
-Proposed new rates per card type
-Before/after comparison showing:
-
-total net revenue change
-overall Service_Charge rate impact (and how you define “overall”)
-per-card-type impacts
-
-#### Notes & guidance
-
-You may choose reasonable constraints, such as:
-
-max change per card type (e.g., ±X bps)
-keeping some card types unchanged
-avoiding extreme changes that would be unrealistic
-
-We keep it simple, an explainable approach is better :) 
-
-
-
-
-
+# Possible improvements
+* The solution runs end-to-end for the specific files provided. An improvement would be to implement an automated pipeline that ingests all raw files in a directory.
+* The result should probably be loaded as a .csv (or other format) into a specific folder. Due to this uncertainty, all results are printed in the terminal at the moment. 
